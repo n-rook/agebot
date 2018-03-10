@@ -79,7 +79,7 @@ class Building:
     if not isinstance(other, Building):
       return False
     return (self._name == other._name
-      and self._category == other.category
+      and self._category == other._category
       and self._price == other._price
       and self._income == other._income
       and self._happiness == other._happiness
