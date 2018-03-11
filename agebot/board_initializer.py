@@ -9,5 +9,12 @@ def initializeTableau():
     buildings.PHILOSOPHY: 1
   }
 
+  starting_technologies = [
+    buildings.AGRICULTURE_CARD,
+    buildings.BRONZE_CARD,
+    buildings.PHILOSOPHY_CARD,
+    buildings.RELIGION_CARD
+  ]
+
   return board.Tableau(
-    board.DESPOTISM, starting_buildings)
+    board.DESPOTISM, starting_buildings, starting_technologies)

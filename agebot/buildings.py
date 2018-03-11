@@ -1,6 +1,6 @@
 """Contains kinds of buildings."""
 
-from .board import Point, Age
+from .board import Point, Age, BuildingTechnology
 
 class Building:
   """Represents a type of building."""
@@ -282,3 +282,8 @@ MOVIES = Building(
 )
 
 BUILDINGS = tuple(b for b in globals().values() if isinstance(b, Building))
+
+AGRICULTURE_CARD = BuildingTechnology(AGRICULTURE)
+BRONZE_CARD = BuildingTechnology(BRONZE)
+PHILOSOPHY_CARD = BuildingTechnology(PHILOSOPHY)
+RELIGION_CARD = BuildingTechnology(RELIGION)

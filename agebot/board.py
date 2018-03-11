@@ -29,23 +29,39 @@ class Player(enum.Enum):
 class Tableau:
   """An individual player's set of buildings and resources."""
 
-  def __init__(self, government, buildings, civil_actions=None):
+  def __init__(self, government, buildings, building_technologies, civil_actions=None):
     """Creates a new Tableau.
 
     Args:
       government: The current government.
       building: A map from Buildings to the number of that kind of building you have.
+      building_technologies: A sequence of BuildingTechnology cards representing the
+        buildings you know about.
       civil_actions: The number of civil actions you currently have available of
         this type. If left empty, this is set to the maximum number of civil actions
         you have.
     """
     self._government = government
     self._buildings = buildings
-    self._civil_actions = civil_actions
+    self._building_technologies = frozenset(building_technologies)
+    if civil_actions is None:
+      self._civil_actions = self.max_civil_actions
+    else:
+      self._civil_actions = civil_actions
 
   @property
   def max_civil_actions(self):
     return self._government.civil_actions
+
+  @property
+  def known_buildings(self):
+    """The buildings this player knows about.
+
+    Buildings might still show up here even if you can't build them right now:
+    say, because they're too expensive, or because you hit your urban building
+    maximum for this building type.
+    """
+    return tuple(t.building for t in self._building_technologies)
 
   def getRevenue(self, point):
     return sum((c * b.getIncome(point) for (b, c) in self._buildings.items()))
@@ -99,3 +115,20 @@ class Government:
     return hash(self._name)
 
 DESPOTISM = Government('Despotism', Age.ANCIENT, 4, 2, 3)
+
+class BuildingTechnology:
+  """A type of civil card which grants access to a building."""
+
+  def __init__(self, building):
+    self._building = building
+
+  @property
+  def building(self):
+    return self._building
+
+  def __eq__(self, other):
+    return (isinstance(other, BuildingTechnology) and
+            self._building == other._building)
+
+  def __hash__(self):
+    return hash(self._building)
