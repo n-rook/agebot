@@ -2,6 +2,11 @@ import unittest
 from .board import Player, Point, Tableau
 from . import board, buildings, board_initializer
 
+def give_free_stuff(board, points):
+  return board.update_tableau(
+    board.acting_player,
+    board.tableau(board.acting_player).add_points(points))
+
 class BoardTest(unittest.TestCase):
 
   def test_revenue(self):
@@ -22,7 +27,7 @@ class BoardTest(unittest.TestCase):
     self.assertEqual(updated_tableau.points(Point.SCIENCE), 1)
     self.assertEqual(updated_tableau.points(Point.CULTURE), 0)
 
-  def test_build_actions(self):
+  def test_build_actions_available(self):
     testing_board = board_initializer.initialize_board()
     testing_board = testing_board.update_tableau(
       Player.ONE,
@@ -35,3 +40,20 @@ class BoardTest(unittest.TestCase):
         board.BuildAction(buildings.AGRICULTURE),
         board.BuildAction(buildings.BRONZE)
       })
+
+  def test_conduct_build_actions(self):
+    testing_board = give_free_stuff(
+      board_initializer.initialize_board(),
+      {Point.RESOURCES: 4})
+
+    available_actions = testing_board.legal_actions()
+    build_farm = next(
+      a for a in available_actions
+      if isinstance(a, board.BuildAction) and a.building == buildings.AGRICULTURE)
+
+    new_board = testing_board.play_action_phase([build_farm, build_farm])
+    self.assertEqual(new_board.acting_player, Player.TWO)
+    new_tableau = new_board.tableau(Player.ONE)
+    self.assertEqual(new_tableau.num_buildings(buildings.AGRICULTURE), 4)
+    self.assertEqual(new_tableau.points(Point.FOOD), 4)
+    self.assertEqual(new_tableau.points(Point.RESOURCES), 2)

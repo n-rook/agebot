@@ -6,6 +6,8 @@ from collections import namedtuple, Counter
 # As a proof of concept, let's start with a board consisting of only one
 # building: Bronze. No corruption or food yet.
 
+class IllegalActionException(Exception):
+  """Thrown if a player tries to play an illegal action."""
 
 class Board:
   """Represents the entire board, including all players' tableaux and the market row."""
@@ -42,6 +44,7 @@ class Board:
     return self._tableaux
 
   def tableau(self, player):
+    """Returns a player's tableau."""
     return self._tableaux[player]
 
   def update_tableau(self, player, tableau):
@@ -53,6 +56,35 @@ class Board:
     new_tableaux = dict(self._tableaux)
     new_tableaux[player] = tableau
     return Board(self._round_number, self._turn_order, self._acting_player, new_tableaux)
+
+  def legal_actions(self):
+    """Returns legal actions for the acting player."""
+    return self._tableaux[self._acting_player].legal_actions()
+
+  def play_action_phase(self, actions):
+    """Plays and resolves the action phase and end of turn for a player.
+
+    Args:
+      actions: A list of Actions to take.
+    Returns:
+      A new Board.
+    """
+    theBoard = self
+    for a in actions:
+      theBoard = theBoard._play_action(a)
+
+    return theBoard.resolve_end_of_turn_sequence()
+
+  def _play_action(self, action):
+    new_tableau = self._tableaux[self._acting_player].play_action(action)
+    new_tableaux = dict(self._tableaux)
+    new_tableaux[self._acting_player] = new_tableau
+
+    return Board(
+      self._round_number,
+      self._turn_order,
+      self._acting_player,
+      new_tableaux)
 
   def resolve_end_of_turn_sequence(self):
     """Resolves the end of a turn and moves onto the next turn.
@@ -101,7 +133,6 @@ class Board:
       next_player,
       new_tableaux)
 
-
 class Player(enum.Enum):
   """Represents a player."""
   ONE = 1
@@ -135,7 +166,7 @@ class Tableau:
 
     if points is None:
       points = {}
-    self._points = _fillOutPoints(points)
+    self._points = _fill_out_points(points)
 
     if civil_actions is None:
       self._civil_actions = self.max_civil_actions
@@ -174,6 +205,12 @@ class Tableau:
     """
     return tuple(t.building for t in self._building_technologies)
 
+  def legal_actions(self):
+    """Returns a set of all legal actions for this tableau."""
+
+    # Soon, we will need the market row passed in here.
+    return frozenset(self.legal_build_actions())
+
   def legal_build_actions(self):
     """Returns a set of all legal build actions."""
     candidate_actions = [BuildAction(b) for b in self.known_buildings]
@@ -197,12 +234,42 @@ class Tableau:
       if action.building not in self.known_buildings:
         return False
       # Check urban building limit
-      if self.num_buildings_in_category(action.building.category) >= self._government.urban_buildings:
+      if action.building.urban and self.num_buildings_in_category(action.building.category) >= self._government.urban_buildings:
         return False
     else:
       raise NotImplementedError('Unknown action type {}'.format(action))
 
     return True
+
+  def play_action(self, action):
+    """Plays an action and returns an updated tableau.
+
+    Args:
+      action: The action to play.
+    Throws:
+      IllegalActionException if we aren't allowed to play this action.
+    """
+    if (not self.is_action_legal(action)):
+      raise IllegalActionException('Cannot play action: {}'.format(action))
+
+    new_points = dict(self._points)
+    for point in Point:
+      new_points[point] -= action.get_price(point)
+
+    if isinstance(action, BuildAction):
+      new_buildings = dict(self._buildings)
+      if (action.building in new_buildings):
+        new_buildings[action.building] += 1
+      else:
+        new_buildings[action.building] = 1
+
+      return Tableau(
+        self._government,
+        new_buildings,
+        self._building_technologies,
+        new_points)
+    else:
+      raise NotImplementedError(str(action))
 
   def revenue(self, point):
     return sum((c * b.getIncome(point) for (b, c) in self._buildings.items()))
@@ -260,7 +327,7 @@ class Point(enum.Enum):
   SCIENCE = 3
   CULTURE = 4
 
-def _fillOutPoints(pointDictionary):
+def _fill_out_points(pointDictionary):
   """Returns a dictionary with 0 of each absent type of point.
 
   Note that if the incoming dictionary is all filled out already, this returns
@@ -271,6 +338,10 @@ def _fillOutPoints(pointDictionary):
     if point not in returnDictionary:
       returnDictionary = dict(returnDictionary)
       returnDictionary[point] = 0
+
+  for point in returnDictionary:
+    if not isinstance(point, Point):
+      raise TypeError('Huh? ', point)
   return returnDictionary
 
 class Age(enum.Enum):
@@ -344,7 +415,7 @@ class Action:
     """
     self._civil_cost = civil_cost
     self._military_cost = military_cost
-    self._price = _fillOutPoints(price)
+    self._price = _fill_out_points(price)
 
   @property
   def civil_cost(self):
