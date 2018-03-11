@@ -36,6 +36,15 @@ class Building:
   def age(self):
     return self._age
 
+  @property
+  def price(self):
+    return self._price
+
+  @property
+  def urban(self):
+    """True if this is an "Urban Building", false otherwise."""
+    return self._category != 'Farm' and self._category != 'Mine'
+
   def getIncome(self, point):
     if point in self._income:
       return self._income[point]
