@@ -1,6 +1,6 @@
 """Initializes the board state."""
 
-from . import board, buildings
+from . import board, buildings, content
 
 def initialize_tableau():
   starting_buildings = {
@@ -10,10 +10,10 @@ def initialize_tableau():
   }
 
   starting_technologies = [
-    buildings.AGRICULTURE_CARD,
-    buildings.BRONZE_CARD,
-    buildings.PHILOSOPHY_CARD,
-    buildings.RELIGION_CARD
+    content.AGRICULTURE_CARD,
+    content.BRONZE_CARD,
+    content.PHILOSOPHY_CARD,
+    content.RELIGION_CARD
   ]
 
   return board.Tableau(

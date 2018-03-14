@@ -29,6 +29,10 @@ class Building:
     self._hash = None
 
   @property
+  def name(self):
+    return self._name
+
+  @property
   def category(self):
     return self._category
 
@@ -291,8 +295,3 @@ MOVIES = Building(
 )
 
 BUILDINGS = tuple(b for b in globals().values() if isinstance(b, Building))
-
-AGRICULTURE_CARD = BuildingTechnology(AGRICULTURE)
-BRONZE_CARD = BuildingTechnology(BRONZE)
-PHILOSOPHY_CARD = BuildingTechnology(PHILOSOPHY)
-RELIGION_CARD = BuildingTechnology(RELIGION)

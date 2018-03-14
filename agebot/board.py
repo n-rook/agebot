@@ -385,10 +385,41 @@ class Government:
 
 DESPOTISM = Government('Despotism', Age.ANCIENT, 4, 2, 3)
 
-class BuildingTechnology:
+class CivilCard:
+  """A card."""
+
+  def __init__(self, name, age):
+    """Create a new type of civil card.
+
+    Args:
+      name: The card's name, as a string.
+      age: The age in which the card arrives.
+    """
+    self._name = name
+    self._age = age
+
+  def __str__(self):
+    return self._name
+
+class Technology(CivilCard):
+  """A type of card purchased with science."""
+
+  def __init__(self, name, age, price):
+    """Initializes a Technology.
+
+    Args:
+      name: The technology's name.
+      age: Which Age the technology appears in.
+      price: An int representing how much science the techonology costs.
+    """
+    super().__init__(name, age)
+    self._price = price
+
+class BuildingTechnology(Technology):
   """A type of civil card which grants access to a building."""
 
-  def __init__(self, building):
+  def __init__(self, building, price):
+    super().__init__(building.name, building.age, price)
     self._building = building
 
   @property
@@ -445,3 +476,12 @@ class BuildAction(Action):
 
   def __hash__(self):
     return hash(self._building)
+
+class CardDistribution(namedtuple('CardDistribution', ['two', 'three', 'four'])):
+  """How many of a given card there are in the deck."""
+
+  def withPlayers(self, number):
+    try:
+      return {2: self.two, 3: self.three, 4: self.four}[number]
+    except KeyError:
+      raise ValueError('Invalid number {}'.format(number))

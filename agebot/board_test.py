@@ -1,6 +1,6 @@
 import unittest
 from .board import Player, Point, Tableau
-from . import board, buildings, board_initializer
+from . import board, buildings, board_initializer, content
 
 def give_free_stuff(board, points):
   return board.update_tableau(
@@ -57,3 +57,34 @@ class BoardTest(unittest.TestCase):
     self.assertEqual(new_tableau.num_buildings(buildings.AGRICULTURE), 4)
     self.assertEqual(new_tableau.points(Point.FOOD), 4)
     self.assertEqual(new_tableau.points(Point.RESOURCES), 2)
+
+  def test_eq_maintained_with_identical_outcomes(self):
+    testing_board = give_free_stuff(
+      board_initializer.initialize_board(),
+      {Point.RESOURCES: 4})
+
+    available_actions = testing_board.legal_actions()
+    build_farm = next(
+      a for a in available_actions
+      if isinstance(a, board.BuildAction) and a.building == buildings.AGRICULTURE)
+    build_mine = next(
+      a for a in available_actions
+      if isinstance(a, board.BuildAction) and a.building == buildings.BRONZE)
+    board1 = testing_board.play_action_phase([build_farm, build_mine])
+    board2 = testing_board.play_action_phase([build_mine, build_farm])
+    self.assertEqual(board1, board2)
+
+  def test_card_distributions(self):
+    selectiveBreedingDistribution = (
+      content.CIVIL_CARD_DISTRIBUTIONS[content.SELECTIVE_BREEDING_CARD])
+    self.assertEqual(
+      selectiveBreedingDistribution,
+      board.CardDistribution(1, 2, 3))
+
+    self.assertEqual(selectiveBreedingDistribution.two, 1)
+    self.assertEqual(selectiveBreedingDistribution.three, 2)
+    self.assertEqual(selectiveBreedingDistribution.four, 3)
+
+    self.assertEqual(selectiveBreedingDistribution.withPlayers(2), 1)
+    self.assertEqual(selectiveBreedingDistribution.withPlayers(3), 2)
+    self.assertEqual(selectiveBreedingDistribution.withPlayers(4), 3)
