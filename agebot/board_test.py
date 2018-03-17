@@ -9,6 +9,14 @@ def give_free_stuff(board, points):
 
 class BoardTest(unittest.TestCase):
 
+  def test_repr(self):
+    testing_board = board_initializer.initialize_board()
+    repr(testing_board)  # no error
+
+  def test_str(self):
+    testing_board = board_initializer.initialize_board()
+    str(testing_board)  # no error
+
   def test_revenue(self):
     tableau = Tableau(
       board.DESPOTISM, {buildings.AGRICULTURE: 3}, [])

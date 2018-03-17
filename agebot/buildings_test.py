@@ -9,7 +9,7 @@ class BuildingsTest(unittest.TestCase):
         'Iron',
         'Mine',
         5,
-        {board.Point.RESOURCES, 2},
+        {board.Point.RESOURCES: 2},
         board.Age.ONE)
 
     self.assertEqual(makeIron(), makeIron())

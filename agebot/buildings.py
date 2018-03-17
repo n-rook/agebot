@@ -1,5 +1,6 @@
 """Contains kinds of buildings."""
 
+from frozendict import frozendict
 from .board import Point, Age, BuildingTechnology
 
 class Building:
@@ -22,7 +23,7 @@ class Building:
     self._name = name
     self._category = category
     self._price = price
-    self._income = income
+    self._income = frozendict(income)
     self._happiness = happiness
     self._strength = strength
     self._age = age
@@ -73,20 +74,12 @@ class Building:
       self._name,
       self._category,
       self._price,
-      _hashDict(self._income),
+      self._income,
       self._happiness,
       self._strength,
       self._age
     ))
 
-def _hashDict(d):
-  """Returns a hash value for a dictionary.
-
-  Be aware that this hash value will change if the dictionary changes. In other
-  words, if you use this function to calculate the hash of a mutable object,
-  your life will become hard.
-  """
-  return hash(frozenset(d))
 
 # Farms
 

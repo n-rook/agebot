@@ -2,6 +2,7 @@
 
 import enum
 from collections import namedtuple, Counter
+from frozendict import frozendict
 
 # As a proof of concept, let's start with a board consisting of only one
 # building: Bronze. No corruption or food yet.
@@ -25,7 +26,7 @@ class Board:
     self._round_number = round_number
     self._turn_order = turn_order
     self._acting_player = acting_player
-    self._tableaux = tableaux
+    self._tableaux = frozendict(tableaux)
 
   @property
   def round(self):
@@ -42,6 +43,24 @@ class Board:
   @property
   def tableaux(self):
     return self._tableaux
+
+  def __repr__(self):
+    return 'Board({}, {}, {}, {})'.format(
+      self._round_number, self._turn_order, self._acting_player, self._tableaux)
+
+  def __str__(self):
+    return ('--------\nRound {}\nPlayer {}\nTableaux:\n' +
+      '\n'.join(['{}\n{}\n'.format(p, t) for (p, t) in self._tableaux.items()]))
+
+  def __hash__(self):
+    return hash((self._round_number, self._turn_order, self._acting_player, self._tableaux))
+
+  def __eq__(self, other):
+    return (isinstance(other, Board) and
+      self._round_number == other._round_number and
+      self._turn_order == other._turn_order and
+      self._acting_player == other._acting_player and
+      self._tableaux == other._tableaux)
 
   def tableau(self, player):
     """Returns a player's tableau."""
@@ -161,7 +180,7 @@ class Tableau:
         you have.
     """
     self._government = government
-    self._buildings = buildings
+    self._buildings = frozendict(buildings)
     self._building_technologies = frozenset(building_technologies)
 
     if points is None:
@@ -172,6 +191,24 @@ class Tableau:
       self._civil_actions = self.max_civil_actions
     else:
       self._civil_actions = civil_actions
+
+  def __str__(self):
+    return 'Tableau\n{}\n{}'.format(
+      self._government.name,
+      self._building_map_str()
+    )
+
+  def __eq__(self, other):
+    return (isinstance(other, Tableau) and
+      self._government == other._government and
+      self._buildings == other._buildings and
+      self._building_technologies == other._building_technologies)
+
+  def _building_map_str(self):
+    return 'Built:\n' + '\n'.join(['  ' + b.name for b in self._buildings]) + '\n'
+
+  def _tech_str(self):
+    return 'Discovered:\n' + '\n'.join(['  ' + t.name for t in self._building_technologies]) + '\n'
 
   def points(self, point):
     return self._points[point]
@@ -366,6 +403,10 @@ class Government:
     self._income = income or {}
     self._happiness = happiness
     self._strength = strength
+
+  @property
+  def name(self):
+    return self._name
 
   @property
   def civil_actions(self):
