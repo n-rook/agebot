@@ -3,6 +3,7 @@
 import enum
 from collections import namedtuple, Counter
 from frozendict import frozendict
+from immutable import frozenbag
 
 # As a proof of concept, let's start with a board consisting of only one
 # building: Bronze. No corruption or food yet.
@@ -13,7 +14,7 @@ class IllegalActionException(Exception):
 class Board:
   """Represents the entire board, including all players' tableaux and the market row."""
 
-  def __init__(self, round_number, turn_order, acting_player, tableaux):
+  def __init__(self, round_number, turn_order, acting_player, card_row, tableaux):
     """Initializes the board.
 
     Args:
@@ -21,11 +22,13 @@ class Board:
         a turn.
       turn_order: The order in which players take their turns.
       acting_player: Whose turn it is.
+      card_row: The card row.
       tableaux: A map from each player to their tableau.
     """
     self._round_number = round_number
     self._turn_order = turn_order
     self._acting_player = acting_player
+    self._card_row = card_row
     self._tableaux = frozendict(tableaux)
 
   @property
@@ -53,7 +56,7 @@ class Board:
       '\n'.join(['{}\n{}\n'.format(p, t) for (p, t) in self._tableaux.items()]))
 
   def __hash__(self):
-    return hash((self._round_number, self._turn_order, self._acting_player, self._tableaux))
+    return hash((self._round_number, self._turn_order, self._acting_player, self._card_row, self._tableaux))
 
   def __eq__(self, other):
     return (isinstance(other, Board) and
@@ -74,7 +77,7 @@ class Board:
 
     new_tableaux = dict(self._tableaux)
     new_tableaux[player] = tableau
-    return Board(self._round_number, self._turn_order, self._acting_player, new_tableaux)
+    return Board(self._round_number, self._turn_order, self._acting_player, self._card_row, new_tableaux)
 
   def legal_actions(self):
     """Returns legal actions for the acting player."""
@@ -103,6 +106,7 @@ class Board:
       self._round_number,
       self._turn_order,
       self._acting_player,
+      self._card_row,
       new_tableaux)
 
   def resolve_end_of_turn_sequence(self):
@@ -150,7 +154,35 @@ class Board:
       new_round,
       self._turn_order,
       next_player,
+      self._card_row,
       new_tableaux)
+
+  def resolve_start_of_turn(self, options):
+    """Resolves the beginning of a turn.
+
+    Args:
+      options: SimulatorOptions
+    Returns:
+      A Board representing the action phase of the next turn.
+    """
+    replenish_results = self._card_row.shift_left().replenish(options)
+
+    # Resolve the end of an age.
+    if replenish_results.new_age is not None:
+      new_tableaux = {p: t.antiquate() for (p, t) in self._tableaux.items()}
+    else:
+      new_tableaux = dict(self._tableaux)
+
+    # Resolve a war.
+    # Make exclusive tactics available.
+
+    return Board(
+      self._round_number,
+      self._turn_order,
+      self._acting_player,
+      replenish_results.card_row,
+      new_tableaux
+    )
 
 class Player(enum.Enum):
   """Represents a player."""
@@ -335,6 +367,11 @@ class Tableau:
     """Returns this tableau having gained its resources revenue."""
     return self._gain_point(Point.RESOURCES)
 
+  def antiquate(self, new_age):
+    """Upon the dawn of a new age, discard old held cards."""
+    # Not yet implemented
+    return self
+
   def _gain_point(self, point):
     return self._gain_points([point])
 
@@ -389,6 +426,16 @@ class Age(enum.Enum):
   THREE = 3
   FOUR = 4
 
+  def next_age(self):
+    if self == Age.FOUR:
+      raise RuntimeError('No age after Age IV!')
+    return {
+      Age.ANCIENT: Age.ONE,
+      Age.ONE: Age.TWO,
+      Age.TWO: Age.THREE,
+      Age.THREE: Age.FOUR
+    }[self]
+
 class Government:
   """A player's current government."""
 
@@ -426,6 +473,174 @@ class Government:
 
 DESPOTISM = Government('Despotism', Age.ANCIENT, 4, 2, 3)
 
+CARD_ROW_PRICES = (5, 4, 4)
+"""The number of cards at each price point in the card row.
+
+The first CARD_ROW_PRICES[0] cards cost 1 civil actions to take, the next
+CARD_ROW_PRICES[1] take 2, etc.
+"""
+TOTAL_CARDS_IN_CARD_ROW = sum(CARD_ROW_PRICES)
+"""The total number of cards in the card row."""
+
+EMPTY_CARD_SLOT = object()
+"""This singleton object represents an empty card slot."""
+
+class CardRow:
+  """The card row containing all civil cards."""
+
+  def __init__(self, card_row, civil_decks, player_count):
+    """Initializes the CardRow.
+
+    Args:
+      card_row: A tuple containing the cards in the card row. This must have
+        a length of precisely 14. If a slot has no card in it, it contains
+        EMPTY_CARD_SLOT instead.
+      civil_decks: A CivilDecks representing the remaining cards.
+      player_count: The number of players. This determines how many cards are
+        replaced at the beginning of each turn.
+    """
+    if len(card_row) != TOTAL_CARDS_IN_CARD_ROW:
+      raise ValueError('Card row has {} cards'.format(len(card_row)))
+
+    self._card_row = card_row
+    self._civil_decks = civil_decks
+    self._player_count = player_count
+
+  @property
+  def cards_discarded_per_turn(self):
+    return {2: 4, 3: 3, 4: 2}[self._player_count]
+
+  def get_price(self, card_index):
+    price = 1
+    for i in CARD_ROW_PRICES:
+      if i > card_index:
+        return price
+      card_index -= i
+    raise ValueError('Invalid price {}')
+
+  def pick_card(self, card_index):
+    """Take a card from the card row.
+
+    Returns a CardRowPickResult containing both the card picked and the
+    new card row after the card picked is gone.
+    """
+    card = self._card_row[card_index]
+    if card == EMPTY_CARD_SLOT:
+      raise ValueError('No card at index {}'.format(card_index))
+
+    new_card_row = list(self._card_row)
+    new_card_row[card_index] = EMPTY_CARD_SLOT
+    return CardRowPickResult(
+      card,
+      CardRow(tuple(new_card_row), self._civil_decks, self._player_count))
+
+  def shift_left(self):
+    """Discard the leftmost cards, and shift all other cards to the left."""
+
+    new_card_row = list(self._card_row)
+    for i in range(self.cards_discarded_per_turn):
+      new_card_row[i] = EMPTY_CARD_SLOT
+
+    new_cards = []
+    for card in self._card_row[self.cards_discarded_per_turn:]:
+      new_cards.append(card)
+    while len(new_cards) < TOTAL_CARDS_IN_CARD_ROW:
+      new_cards.append(EMPTY_CARD_SLOT)
+    return CardRow(tuple(new_cards), self._civil_decks, self._player_count)
+
+  def replenish(self, options):
+    """Restore all empty slot cards."""
+
+    empty_card_slots = [i for (i, c) in self._card_row if c == EMPTY_CARD_SLOT]
+    if len(empty_card_slots) == 0:
+      return self
+
+    draw_result = self._civil_decks.draw(len(empty_card_slots), options)
+    new_card_row = list(self._card_row)
+    for (i, new_card) in zip(empty_card_slots, draw_result.cards):
+      new_card_row[i] = new_card
+    return ReplenishResult(
+      CardRow(
+        tuple(new_card_row),
+        draw_result.civil_decks,
+        self._player_count),
+      draw_result.new_age)
+
+class ReplenishResult(namedtuple('ReplenishResult', ['card_row', 'new_age'])):
+  """The results of replenishing the card row.
+
+  Fields:
+  card_row: The updated card row.
+  new_age: If a new age has begun, that age.
+  """
+
+class CardRowPickResult(namedtuple('CardRowPickResult', ['card', 'row'])):
+  """The result of picking a card."""
+
+class CivilDecks:
+  """A collection of civil decks.
+
+  In real life, a deck of cards is in a certain order hidden to players.
+  Here, it is represented as a bag of cards, from which one is picked at
+  random.
+  """
+
+  def __init__(self, deck_dicts):
+    """Construct a CivilDecks instance.
+
+    Args:
+      deck_dicts: A mapping from ages to a frozenbag of the cards remaining
+        in the deck for that age.
+    """
+    self._deck_dicts = frozendict(deck_dicts)
+
+  def draw(self, num_cards, options):
+    """Draw a number of cards. Returns a DrawResult."""
+    age_to_draw_from = self._earliest_age_with_cards()
+
+    if age_to_draw_from is None:
+      # No cards left! Do nothing.
+      return DrawResult(tuple(), self, None)
+
+    deck_to_draw_from = self._deck_dicts[age_to_draw_from]
+    cards_drawn = options.rng.pick_cards(num_cards, deck_to_draw_from)
+
+    if len(cards_drawn) < num_cards and age_to_draw_from != Age.FOUR:
+      next_age = age_to_draw_from.next_age()
+      next_age_deck = self._deck_dicts[next_age]
+
+      next_age_cards = options.rng.pick_cards(
+        num_cards - len(cards_drawn), next_age_deck)
+
+      new_decks = dict(self._deck_dicts)
+      new_decks[age_to_draw_from] = cards_drawn.deck
+      new_decks[next_age] = next_age_cards.deck
+
+      return DrawResult(
+        cards_drawn.cards + next_age_cards.cards,
+        CivilDecks(new_decks))
+    else:
+      new_decks = dict(self._deck_dicts)
+      new_decks[age_to_draw_from] = cards_drawn.deck
+      return DrawResult(cards_drawn, CivilDecks(new_decks))
+
+  def _earliest_age_with_cards(self):
+    for age in Age:
+      if self._deck_dicts[age]:
+        return age
+    return None
+
+class DrawResult(namedtuple('DrawResult', ['cards', 'civil_decks', 'new_age'])):
+  """Represents the outcome of drawing cards.
+
+  Fields:
+    cards: A tuple of the cards drawn.
+    civil_decks: The new state of the civil decks.
+    new_age: If set, the cards returned have caused a new age to dawn
+      upon your glorious civilization!
+  """
+
+
 class CivilCard:
   """A card."""
 
@@ -438,6 +653,14 @@ class CivilCard:
     """
     self._name = name
     self._age = age
+
+  @property
+  def name(self):
+    return self._name
+
+  @property
+  def age(self):
+    return self._age
 
   def __str__(self):
     return self._name

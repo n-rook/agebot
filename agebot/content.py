@@ -36,11 +36,33 @@ BUILDING_CARDS = tuple(b for b in globals().values() if isinstance(b, BuildingTe
 
 CIVIL_CARD_DISTRIBUTIONS = {
   AGRICULTURE_CARD: CardDistribution(0, 0, 0),
-  BRONZE_CARD: CardDistribution(0, 0, 0),
-  PHILOSOPHY_CARD: CardDistribution(0, 0, 0),
-  RELIGION_CARD: CardDistribution(0, 0, 0),
-
   IRRIGATION_CARD: CardDistribution(2, 2, 2),
+  SELECTIVE_BREEDING_CARD: CardDistribution(1, 2, 3),
+  MECHANIZED_AGRICULTURE_CARD: CardDistribution(1, 2, 2),
 
-  SELECTIVE_BREEDING_CARD: CardDistribution(1, 2, 3)
+  BRONZE_CARD: CardDistribution(0, 0, 0),
+  IRON_CARD: CardDistribution(2, 2, 3),
+  COAL_CARD: CardDistribution(1, 2, 2),
+  OIL_CARD: CardDistribution(1, 2, 2),
+
+  PHILOSOPHY_CARD: CardDistribution(0, 0, 0),
+  ALCHEMY_CARD: CardDistribution(2, 2, 3),
+  SCIENTIFIC_METHOD_CARD: CardDistribution(2, 2, 2),
+  COMPUTERS_CARD: CardDistribution(2, 2, 2),
+
+  RELIGION_CARD: CardDistribution(0, 0, 0),
+  THEOLOGY_CARD: CardDistribution(1, 2, 2),
+  ORGANIZED_RELIGION_CARD: CardDistribution(2, 2, 2),
+
+  BREAD_AND_CIRCUSES_CARD: CardDistribution(1, 2, 2),
+  TEAM_SPORTS_CARD: CardDistribution(1, 1, 1),
+  PRO_SPORTS_CARD: CardDistribution(1, 1, 2),
+
+  PRINTING_PRESS_CARD: CardDistribution(2, 2, 2),
+  JOURNALISM_CARD: CardDistribution(1, 2, 2),
+  MULTIMEDIA_CARD: CardDistribution(2, 2, 2),
+
+  DRAMA_CARD: CardDistribution(1, 2, 2),
+  OPERA_CARD: CardDistribution(2, 2, 2),
+  MOVIES_CARD: CardDistribution(2, 2, 2),
 }
